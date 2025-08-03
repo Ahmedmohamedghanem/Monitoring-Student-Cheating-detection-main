@@ -1,0 +1,47 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>{% block title %}ARGUS AI{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-white flex flex-col">
+
+  <!-- Navbar -->
+  <nav class="bg-purple-800 text-white p-4 shadow-md">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <img src="{% static 'images/ARGUS AI LOGO.png' %}" alt="Logo" class="w-8 h-8 object-cover" />
+        <span class="text-xl font-bold tracking-wide">ARGUS AI</span>
+      </div>
+      <ul class="flex gap-6 text-sm font-medium">
+        <li><a href="/" class="hover:text-gray-300">Home</a></li>
+        <!-- <li><a href="#" class="hover:text-gray-300">Support</a></li> -->
+        <li><a href="{% url 'about' %}" class="hover:text-white">About</a></li>
+        <li><a href="/admin/" class="hover:text-gray-300">Admin</a></li> 
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="flex-grow">
+    {% block content %}
+    {% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-gray-900 text-gray-300 py-6 mt-10">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center text-sm">
+      <p>&copy; 2025 ARGUS AI. All rights reserved.</p>
+      <div class="flex gap-4 mt-3 md:mt-0">
+        <a href="{% url 'privacy' %}" class="hover:text-white">Privacy Policy</a>
+        <!-- <a href="#" class="hover:text-white">Terms</a> -->
+        <a href="{% url 'about' %}" class="hover:text-white">About</a>
+        <a href="{% url 'support' %}" class="hover:text-white">Support</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

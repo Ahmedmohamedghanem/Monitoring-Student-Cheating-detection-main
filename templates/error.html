@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}خطأ{% endblock %}
+
+{% block content %}
+    <div class="error-page">
+        <h1>حصل خطأ</h1>
+        <p>{{ message }}</p>
+        <a href="{% url 'hall_list' %}" class="btn-back">رجوع للقاعات</a>
+    </div>
+
+    <style>
+        .error-page {
+            text-align: center;
+            padding: 50px;
+        }
+        .error-page h1 {
+            font-size: 36px;
+            color: #e74c3c;
+            margin-bottom: 20px;
+        }
+        .error-page p {
+            font-size: 18px;
+            color: #555;
+            margin-bottom: 30px;
+        }
+        .btn-back {
+            display: inline-block;
+            background: #74ebd5;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        .btn-back:hover {
+            background: #4db8a1;
+        }
+    </style>
+{% endblock %}

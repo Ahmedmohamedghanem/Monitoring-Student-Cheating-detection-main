@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="p-6 bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white min-h-screen flex flex-col space-y-6">
+
+  <h1 class="text-3xl font-bold text-center text-indigo-400 uppercase tracking-widest">
+    🎥 {{ hall.name }} — Cheating Surveillance 
+  </h1>
+
+  <input type="hidden" id="hallId" value="{{ hall.id }}">
+  <input type="hidden" id="hallName" value="{{ hall.name }}">
+
+  <!-- Main Grid -->
+  <div class="grid grid-cols-4 gap-4 h-[80vh]">
+    <!-- Violations Report -->
+    <div class="col-span-1 bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl shadow-2xl overflow-y-auto border border-slate-700 p-3">
+      <h2 class="text-xl font-extrabold text-center py-4 border-b border-slate-600 text-indigo-400 tracking-wide">📋 Report</h2>
+
+      <input type="text" id="filterName" placeholder="🔍 Filter by name..." onkeyup="filterViolations()"
+        class="w-full text-black px-3 py-2 mb-3 rounded shadow">
+
+      <div class="text-center text-yellow-300 font-bold mb-2" id="hall-total-cheaters">📊 Total Cheaters: 0</div>
+      <div class="text-center text-red-500 text-sm font-bold hidden animate-pulse" id="cheating-alert">🚨 High cheating activity!</div>
+
+      <table class="w-full text-sm text-left border-collapse" id="violations-table" dir="ltr">
+        <thead class="text-xs uppercase bg-slate-700 text-gray-300 sticky top-0 z-10">
+          <tr class="text-center">
+            <th class="px-1 py-2 w-1/4">🧑 Name</th>
+            <th class="px-1 py-2 w-1/6">🆔 ID</th>
+            <th class="px-1 py-2 w-1/3">📋 Reason</th>
+            <!-- <th class="px-1 py-2 w-1/4">⏱️ Time</th> -->
+          </tr>
+        </thead>
+        <tbody id="violations-body" class="divide-y divide-gray-700">
+          <!-- Dynamic entries -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Camera Grid -->
+    <div class="col-span-3">
+      <div id="cameraGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {% for camera in cameras %}
+        <div id="camera-box-{{ camera.id }}"
+          class="relative rounded-2xl overflow-hidden border border-slate-700 bg-black shadow-lg hover:shadow-2xl transition duration-300">
+          <img id="video-{{ camera.id }}" class="w-full h-full object-cover"
+            src="{% if camera.is_live %}/camera/livefe/{{ camera.id }}/{% else %}/camera/video_feed/{{ camera.id }}/{% endif %}"
+            alt="Camera {{ camera.id }}">
+          <div id="cheat-count-{{ camera.id }}"
+            class="absolute bottom-2 left-2 bg-gradient-to-r from-rose-600 to-rose-800 text-white text-xs px-2 py-1 rounded-full shadow-md">
+            👀 Cheaters: 0
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="w-full bg-slate-800 py-4 px-6 rounded-2xl shadow-xl flex flex-col gap-4">
+    <div class="flex flex-wrap justify-between gap-3 items-center">
+      <button onclick="toggleAttendance(true)"
+        class="bg-gradient-to-r from-emerald-600 to-emerald-800 hover:brightness-110 text-white font-bold py-2 px-6 rounded-xl shadow-lg transition-all">
+        📋 Start Attendance</button>
+
+      <div class="flex flex-wrap gap-3">
+        <button onclick="toggleAntiCheatingAll(true)"
+          class="bg-gradient-to-r from-purple-600 to-fuchsia-700 hover:brightness-110 text-white font-bold py-2 px-6 rounded-xl shadow-lg transition-all">
+          ✅ Enable Detection</button>
+
+        <button onclick="toggleAntiCheatingAll(false)"
+          class="bg-gradient-to-r from-slate-700 to-gray-900 hover:brightness-110 text-white font-bold py-2 px-6 rounded-xl shadow-lg transition-all">
+          ❌ Disable Detection</button>
+
+        <button onclick="resetCameras()"
+          class="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:brightness-110 text-white font-bold py-2 px-6 rounded-xl shadow-lg transition-all">
+          🔄 Reload</button>
+      </div>
+
+      <button onclick="window.location.href='/camera/'"
+        class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg shadow ml-auto">
+        ⬅ Exit</button>
+    </div>
+
+    <div class="flex flex-wrap gap-3 mt-2">
+      <button onclick="showAllCameras()" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-5 rounded-lg">
+        📷 All Cameras
+      </button>
+      {% for camera in cameras %}
+      <button onclick="focusCamera('{{ camera.id }}')" class="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg">
+        🎥 Camera {{ forloop.counter }}
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const seenViolations = new Set();
+let cheatInterval = null;
+
+function updateViolationsReport(violations) {
+  const tbody = document.getElementById("violations-body");
+  violations.forEach(entry => {
+    const uniqueId = `${entry.academic_id}-${entry.datetime}`;
+    if (seenViolations.has(uniqueId)) return;
+    seenViolations.add(uniqueId);
+
+    // ✅ استخدم دالة showNotification من base.html
+    showNotification(entry.student_name, entry.academic_id, "{{ hall.name }}", 1);
+
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td class="px-1 py-2 text-sm">${entry.student_name}</td>
+      <td class="px-1 py-2 text-sm">${entry.academic_id}</td>
+      <td class="px-1 py-2 text-sm text-rose-400 font-semibold">${entry.reason}</td>
+      
+    `;
+    tbody.prepend(row);
+  });
+}
+
+function toggleAntiCheatingAll(activate) {
+  const hallId = document.getElementById("hallId").value;
+  const hallName = document.getElementById("hallName").value;
+
+  fetch(`/camera/toggle_anti_cheating_all/?activate=${activate}&hall_id=${hallId}&hall_name=${encodeURIComponent(hallName)}`)
+    .then(res => res.json())
+    .then(data => {
+      alert(`${data.status ? '✅ Detection enabled' : '❌ Detection disabled'} for all cameras`);
+      if (activate && !cheatInterval) {
+        fetchCheatingStats(hallId);
+        cheatInterval = setInterval(() => fetchCheatingStats(hallId), 5000);
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Error while changing detection status");
+    });
+}
+
+function fetchCheatingStats(hallId) {
+  fetch(`/camera/cheating_stats/?hall_id=${hallId}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.status !== "active" || !data.per_camera) return;
+      let total = 0;
+      Object.entries(data.per_camera).forEach(([camId, info]) => {
+        const label = document.getElementById(`cheat-count-${camId}`);
+        if (label) {
+          label.innerText = `👀 Cheaters: ${info.count}`;
+          total += info.count;
+        }
+      });
+      document.getElementById("hall-total-cheaters").innerText = `📊 Total Cheaters: ${total}`;
+      const alertBox = document.getElementById("cheating-alert");
+      alertBox.classList.toggle("hidden", total < 10);
+      if (data.violations) updateViolationsReport(data.violations);
+    })
+    .catch(err => {
+      console.error("Failed to fetch cheating stats:", err);
+    });
+}
+
+function resetCameras() { location.reload(); }
+function openSettings() { document.getElementById('settingsModal').classList.remove('hidden'); }
+function closeSettings() { document.getElementById('settingsModal').classList.add('hidden'); }
+
+function filterViolations() {
+  const input = document.getElementById("filterName").value.toLowerCase();
+  const rows = document.querySelectorAll("#violations-body tr");
+  rows.forEach(row => {
+    const name = row.children[0].textContent.toLowerCase();
+    row.style.display = name.includes(input) ? "" : "none";
+  });
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  const hallId = document.getElementById("hallId").value;
+  if (Notification.permission !== "granted") Notification.requestPermission();
+
+  fetch(`/camera/cheating_stats/?hall_id=${hallId}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === "active") {
+        fetchCheatingStats(hallId);
+        if (!cheatInterval) cheatInterval = setInterval(() => fetchCheatingStats(hallId), 5000);
+      }
+    })
+    .catch(err => console.error("Initial stats check failed:", err));
+});
+
+function focusCamera(id) {
+  const allCameras = document.querySelectorAll('#cameraGrid > div');
+  allCameras.forEach(box => box.classList.add('hidden'));
+  const selectedBox = document.getElementById('camera-box-' + id);
+  if (selectedBox) {
+    selectedBox.classList.remove('hidden');
+    selectedBox.classList.add('col-span-3', 'row-span-3');
+  }
+}
+
+function showAllCameras() {
+  const allCameras = document.querySelectorAll('#cameraGrid > div');
+  allCameras.forEach(box => box.classList.remove('hidden', 'col-span-3', 'row-span-3'));
+}
+
+function toggleAttendance(activate) {
+  const hallId = document.getElementById("hallId").value;
+  fetch(`/camera/toggle_attendance_tracking/?activate=${activate}&hall_id=${hallId}`)
+    .then(res => res.json())
+    .then(data => {
+      alert(data.message || (activate ? "✅ Attendance started" : "🛑 Attendance stopped"));
+    })
+    .catch(err => {
+      console.error(err);
+      alert("⚠️ Failed to toggle attendance tracking");
+    });
+}
+</script>
+{% endblock %}

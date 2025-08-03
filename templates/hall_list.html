@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="flex min-h-screen bg-gray-950 text-white">
+  <!-- Sidebar -->
+  <aside class="w-64 bg-gray-900 p-6 border-r border-gray-800 sticky top-0 h-screen overflow-y-auto">
+    <h2 class="text-2xl font-bold mb-6 border-b border-gray-700 pb-3">🏢 Floor</h2>
+    <div class="space-y-3">
+      {% for level in grouped_halls.keys %}
+        <button onclick="showLevel('{{ level|slugify }}')"
+                class="w-full text-left py-2 px-4 rounded-xl bg-gray-800 hover:bg-purple-600 hover:text-white transition-all font-medium">
+          {{ level }}
+        </button>
+      {% endfor %}
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 p-10 space-y-10">
+    <div class="flex justify-between items-center">
+      <h1 class="text-4xl font-extrabold tracking-tight">📡 Available Halls by Level</h1>
+      <a href="{% url 'rag_assistant' %}" 
+         class="bg-gradient-to-r from-pink-500 via-rose-500 to-red-500 text-white font-bold py-2 px-5 rounded-full shadow-lg hover:scale-105 transition duration-200">
+        ⚡ A.I. Assistant
+      </a>
+    </div>
+
+    {% for level, halls in grouped_halls.items %}
+      <section id="level-{{ level|slugify }}" class="level-section hidden space-y-6">
+        <h2 class="text-3xl font-semibold text-purple-400 border-b border-purple-700 pb-2">{{ level }}</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {% for hall in halls %}
+            <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-lg p-6 text-center border border-gray-700 hover:shadow-xl transition-all">
+              <h3 class="text-2xl font-bold mb-4">{{ hall.name }}</h3>
+              <a href="{% url 'camera_view' hall_id=hall.id %}" 
+                 class="inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-5 rounded-full font-semibold shadow hover:scale-105 transition">
+                🎥 View Cameras
+              </a>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+    {% endfor %}
+  </main>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function showLevel(levelId) {
+    document.querySelectorAll('.level-section').forEach(section => {
+      section.classList.add('hidden');
+    });
+    const target = document.getElementById('level-' + levelId);
+    if (target) {
+      target.classList.remove('hidden');
+    }
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+{% if user.is_authenticated %}
+<script>
+  renderNotifications();  // ✅ يعيد عرض كل الموجود في localStorage
+  setInterval(checkGlobalNotifications, 5000);  // ✅ يبحث عن الجدد كل 5 ثواني
+</script>
+{% endif %}
+
+<div class="bg-darkBg text-gray-100 min-h-screen flex flex-col pt-24 animate-fade-in">
+
+  <div class="max-w-5xl mx-auto w-full px-4 py-6 flex flex-col gap-6">
+
+    <!-- Header -->
+    <header class="flex justify-between items-center">
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-primary tracking-wide">🧠 Smart Exam Assistant</h1>
+      <span class="text-sm text-gray-400 font-medium">🛡️ Monitoring Mode</span>
+    </header>
+
+    <!-- Chat Box -->
+    <div id="chatBox" class="flex flex-col gap-4 overflow-y-auto max-h-[65vh] p-4 bg-darkCard rounded-xl border border-slate-700 shadow-inner custom-scrollbar"></div>
+
+    <!-- Input Area -->
+    <div class="flex items-center gap-3 bg-darkCard p-4 border border-slate-700 rounded-xl shadow-xl">
+      <input type="text" id="questionInput" placeholder="Type your question..."
+             class="flex-1 bg-transparent border border-slate-600 text-gray-100 rounded-full px-5 py-3 focus:ring-2 focus:ring-primary focus:outline-none placeholder-gray-500">
+      <button onclick="sendMessage()"
+              class="bg-primary hover:bg-indigo-700 text-white px-6 py-3 rounded-full shadow font-semibold transition duration-200">
+        🚀 Send
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+    document.getElementById("questionInput").addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    async function sendMessage() {
+      const input = document.getElementById('questionInput');
+      const question = input.value.trim();
+      if (!question) return;
+
+      appendMessage('user', question);
+      input.value = '';
+
+      try {
+        const response = await fetch("/camera/ai-assistant/", {
+          method: "POST",
+          headers: {
+            'X-CSRFToken': getCSRFToken(),
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({ question })
+        });
+
+        const data = await response.json();
+        appendMessage('assistant', data.answer);
+
+      } catch (error) {
+        appendMessage('assistant', '❗ An error occurred. Please try again.');
+      }
+    }
+
+    function appendMessage(type, text) {
+      const chatBox = document.getElementById('chatBox');
+      const wrapper = document.createElement('div');
+      wrapper.className = `flex ${type === 'user' ? 'justify-end' : 'justify-start'}`;
+      wrapper.innerHTML = `
+        <div class="relative max-w-[80%] px-5 py-3 rounded-2xl shadow 
+          ${type === 'user' ? 'bg-primary text-white rounded-br-none' : 'bg-slate-800 text-gray-100 border border-slate-600 rounded-bl-none'}">
+          ${text}
+          <div class="absolute w-0 h-0 border-t-8 ${type === 'user' ? 'border-primary right-0 -bottom-2 border-l-8 border-r-8 border-l-transparent border-r-transparent' : 'border-slate-800 left-0 -bottom-2 border-l-8 border-r-8 border-l-transparent border-r-transparent'}"></div>
+        </div>
+      `;
+      chatBox.appendChild(wrapper);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function getCSRFToken() {
+      const cookie = document.cookie.split('; ').find(row => row.startsWith('csrftoken='));
+      return cookie ? cookie.split('=')[1] : '';
+    }
+
+    function clearChat() {
+      document.getElementById('chatBox').innerHTML = '';
+    }
+  </script>
+
+  <style>
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background-color: #4f46e5;
+      border-radius: 8px;
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .animate-fade-in {
+      animation: fade-in 0.3s ease-out forwards;
+    }
+  </style>
+
+</div>
+{% endblock %}

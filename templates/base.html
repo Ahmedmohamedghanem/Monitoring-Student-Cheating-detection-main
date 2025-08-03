@@ -1,0 +1,183 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Smart Exam Monitoring{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#6366f1',
+            accent: '#f43f5e',
+            darkBg: '#0f172a',
+            darkCard: '#1e293b',
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+
+<body class="bg-darkBg text-gray-100 min-h-screen flex flex-col">
+
+  <!-- Navbar -->
+  <nav class="fixed w-full bg-darkCard shadow-lg z-50">
+    <div class="container mx-auto flex justify-between items-center py-4 px-6 relative">
+      <div class="absolute left-1/2 transform -translate-x-1/2 text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 tracking-wide flex items-center gap-2 animate-pulse drop-shadow-lg">
+        <img src="{% static 'images/ARGUS AI LOGO.png' %}" alt="Argus Eye" class="w-8 h-8 object-cover" />
+        <span>Argus AI</span>
+      </div>
+
+      <ul class="flex gap-6 text-gray-300 text-lg font-medium">
+        {% if user.is_authenticated %}
+          <li><a href="{% url 'logout' %}" class="hover:text-accent transition">Logout</a></li>
+        {% endif %}
+      </ul>
+
+      <ul class="flex gap-6 text-gray-300 text-lg font-medium">
+        {% if user.is_authenticated %}
+          <li><a href="{% url 'hall_list' %}" class="hover:text-accent transition">Halls</a></li>
+          <li class="relative">
+            <button onclick="toggleNotificationDropdown()" class="hover:text-accent transition text-xl">🔔</button>
+            <div id="notification-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-darkCard text-white shadow-lg rounded-xl overflow-hidden border border-slate-700 z-50">
+              <div class="p-3 text-sm font-bold border-b border-slate-600">🧾 Notifications</div>
+              <ul id="notification-list" class="max-h-60 overflow-y-auto divide-y divide-slate-700"></ul>
+              <div class="text-xs text-center text-gray-400 p-2 border-t border-slate-700">Only stored locally</div>
+            </div>
+          </li>
+        {% else %}
+          <li><a href="{% url 'login' %}" class="hover:text-accent transition">Login</a></li>
+          <li>
+            <a href="/admin/" target="_blank" class="bg-primary hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-xl shadow transition duration-300">
+              Admin Panel
+            </a>
+          </li>
+        {% endif %}
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="flex-grow pt-24 container mx-auto px-4 animate-fade-in">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-darkCard py-4 text-center text-gray-500 text-sm border-t border-slate-700">
+    Smart Exam Monitoring © 2025
+  </footer>
+
+  <!-- Popup Notification -->
+  <div id="notification-box" class="fixed top-20 right-6 z-50 bg-rose-600 text-white rounded-xl shadow-lg px-4 py-3 hidden animate-fade-in">
+    <strong class="block font-bold">🚨 Repeated Cheating Alert</strong>
+    <div id="notification-message" class="text-sm mt-1"></div>
+  </div>
+
+  <!-- Notification Scripts -->
+  <script>
+    function toggleNotificationDropdown() {
+      const dropdown = document.getElementById("notification-dropdown");
+      dropdown.classList.toggle("hidden");
+    }
+
+    function showNotification(name, id, hall) {
+      const title = "🚨 Repeated Cheating Alert";
+      const body = `${name} (${id})\nHall: ${hall}`;
+
+      if ("Notification" in window) {
+        if (Notification.permission === "granted") {
+          new Notification(title, { body });
+        } else if (Notification.permission !== "denied") {
+          Notification.requestPermission().then(permission => {
+            if (permission === "granted") {
+              new Notification(title, { body });
+            }
+          });
+        }
+      }
+
+      const audio = new Audio("{% static 'sound/message-tone.mp3' %}");
+      audio.play().catch(() => {});
+
+      const box = document.getElementById("notification-box");
+      const message = document.getElementById("notification-message");
+      if (box && message) {
+        message.innerHTML = body;
+        box.classList.remove("hidden");
+        setTimeout(() => box.classList.add("hidden"), 6000);
+      }
+
+      addNotificationToList(name, id, hall);
+    }
+
+    function addNotificationToList(name, id, hall) {
+      const now = Date.now();
+      let notifications = JSON.parse(localStorage.getItem("cheating_notifications") || "[]");
+
+      notifications.unshift({ name, id, hall, timestamp: now });  // Push latest on top
+      localStorage.setItem("cheating_notifications", JSON.stringify(notifications));
+      renderNotifications();
+    }
+
+    function renderNotifications() {
+      const list = document.getElementById("notification-list");
+      if (!list) return;
+
+      list.innerHTML = "";
+      const notifications = JSON.parse(localStorage.getItem("cheating_notifications") || "[]");
+
+      notifications.forEach(n => {
+        const item = document.createElement("li");
+        item.className = "p-3 text-sm hover:bg-slate-800 transition";
+        const dateStr = new Date(n.timestamp).toLocaleString();
+        item.innerHTML = `
+          <div class="font-bold text-rose-400">🚨 ${n.name} (${n.id})</div>
+          <div class="text-xs text-gray-400">Hall: ${n.hall} — ${dateStr}</div>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    function checkGlobalNotifications() {
+      fetch('/camera/global_cheating_stats/')
+        .then(res => res.json())
+        .then(data => {
+          data.repeated_students.forEach(s => {
+            showNotification(s.student_name, s.academic_id, s.hall_name);
+          });
+        })
+        .catch(err => console.error("Notification fetch error:", err));
+    }
+
+    {% if user.is_authenticated %}
+      renderNotifications();
+      setInterval(checkGlobalNotifications, 5000);
+    {% endif %}
+  </script>
+
+  {% block extra_js %}{% endblock %}
+
+  <style>
+    @keyframes fade-in {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .animate-fade-in {
+      animation: fade-in 0.3s ease-out forwards;
+    }
+  </style>
+</body>
+</html>
